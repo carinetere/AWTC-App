@@ -21,6 +21,7 @@ import AgendaScreen from './screens/main/AgendaScreen';
 import NotificationsScreen from './screens/main/NotificationsScreen';
 import MessagingScreen from './screens/main/MessagingScreen';
 import PublicationScreen from './screens/main/PublicationScreen';
+import NetworkingScreens from './screens/main/NetworkingScreens';
 
 
 // Import du SettingsScreen avec gestion d'erreur
@@ -145,6 +146,7 @@ export default function App() {
         <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen name="Messages" component={MessagingScreen} />
         <Stack.Screen name="Publication" component={PublicationScreen} />
+        <Stack.Screen name="Networking" component={NetworkingScreens} />
       </Stack.Navigator>
     </NavigationContainer>
   );

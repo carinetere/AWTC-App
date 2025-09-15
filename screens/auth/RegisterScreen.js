@@ -43,7 +43,7 @@ const RegisterScreen = ({ navigation }) => {
   const handleRegister = () => {
     // Logique d'inscription
     console.log('Register with:', { email, password, confirmPassword });
-    navigation.navigate('RegistrationForm')
+    navigation.navigate('RegistrationForm', { email, password});
   };
 
   const handleConnectez = () => {

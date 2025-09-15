@@ -11,54 +11,73 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
-  ScrollView
+  ScrollView,
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { login } from '../../services/authService';
 
 const { width, height } = Dimensions.get('window');
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [code, setCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleGoogleSignIn = () => {
-    // Logique pour Google Sign In
     console.log('Google Sign In');
   };
 
   const handleLinkedInSignIn = () => {
-    // Logique pour LinkedIn Sign In
     console.log('LinkedIn Sign In');
   };
 
   const handleFacebookSignIn = () => {
-    // Logique pour Facebook Sign In
     console.log('Facebook Sign In');
   };
 
-  const handleLogin = () => {
-    // Logique de connexion
-    console.log('Login with:', { email, password, code });
-    navigation.navigate('Home')
-    // Navigation vers la page suivante après connexion
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Erreur', 'Veuillez saisir votre email et votre mot de passe.');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await login({ email, password });
+      const { access, refresh } = response.data;
+      
+      console.log('Tokens obtenus:', { access, refresh });
+      
+      Alert.alert('Succès', 'Connexion réussie !');
+      navigation.navigate('Home');
+      
+    } catch (error) {
+      console.error('Échec de la connexion', error.response?.data);
+      const errorMessage = error.response?.data?.detail || 'Identifiants incorrects.';
+      Alert.alert('Erreur de connexion', errorMessage);
+      
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRegister = () => {
+    navigation.navigate('Register');
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      
       <View style={styles.background}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardAvoidingView}
-        >
-          <ScrollView 
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-          >
+          style={styles.keyboardAvoidingView}>
+          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             {/* Logo Section */}
             <View style={styles.logoContainer}>
               <Image
@@ -97,8 +116,7 @@ const LoginScreen = ({ navigation }) => {
                 />
                 <TouchableOpacity
                   style={styles.eyeIcon}
-                  onPress={() => setShowPassword(!showPassword)}
-                >
+                  onPress={() => setShowPassword(!showPassword)}>
                   <Ionicons 
                     name={showPassword ? "eye-outline" : "eye-off-outline"} 
                     size={20} 
@@ -107,53 +125,49 @@ const LoginScreen = ({ navigation }) => {
                 </TouchableOpacity>
               </View>
 
-              {/* Code Input */}
-              {/* <View style={styles.inputContainer}>
-                <Ionicons name="qr-code-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Code du pass"
-                  placeholderTextColor="#9CA3AF"
-                  value={code}
-                  onChangeText={setCode}
-                  autoCapitalize="characters"
-                />
-              </View> */}
+              <View style={styles.loginLinkContainer}>
+                <Text style={styles.loginLinkText}>
+                  Vous n'avez pas de compte ?{' '}
+                </Text>
+                <TouchableOpacity onPress={handleRegister}>
+                  <Text style={styles.loginLink}>Inscrivez-vous</Text>
+                </TouchableOpacity>
+              </View>
 
-              {/* Divider */}
               <View style={styles.dividerContainer}>
                 <View style={styles.dividerLine} />
                 <Text style={styles.dividerText}>ou</Text>
                 <View style={styles.dividerLine} />
               </View>
 
-              {/* Social Login Buttons */}
               <View style={styles.socialContainer}>
                 <TouchableOpacity style={styles.socialButton} onPress={handleGoogleSignIn}>
-                  <Image
-                    source={{ uri: 'https://developers.google.com/identity/images/g-logo.png' }}
-                    style={styles.socialIcon}
-                  />
+                  <Image source={{ uri: 'https://developers.google.com/identity/images/g-logo.png' }} style={styles.socialIcon} />
                 </TouchableOpacity>
-
                 <TouchableOpacity style={styles.socialButton} onPress={handleLinkedInSignIn}>
                   <Ionicons name="logo-linkedin" size={24} color="#0077B5" />
                 </TouchableOpacity>
-
                 <TouchableOpacity style={styles.socialButton} onPress={handleFacebookSignIn}>
                   <Ionicons name="logo-facebook" size={24} color="#1877F2" />
                 </TouchableOpacity>
               </View>
 
-              {/* Login Button */}
               <LinearGradient
                 colors={['#c72599', '#972eaf', '#6041c9']}
                 start={{ x: 0.5, y: 1 }}
                 end={{ x: 0, y: 1 }}
                 style={styles.loginButton}
               >
-                <TouchableOpacity style={styles.loginButtonInner} onPress={handleLogin}>
-                  <Text style={styles.loginButtonText}>CONNEXION</Text>
+                <TouchableOpacity 
+                  style={styles.loginButtonInner} 
+                  onPress={handleLogin}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.loginButtonText}>SE CONNECTER</Text>
+                  )}
                 </TouchableOpacity>
               </LinearGradient>
             </View>
@@ -164,6 +178,7 @@ const LoginScreen = ({ navigation }) => {
   );
 };
 
+// ⚠️ STYLES MANQUANTS - C'est ici le problème !
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -171,60 +186,70 @@ const styles = StyleSheet.create({
   },
   background: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   keyboardAvoidingView: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 40,
+    paddingHorizontal: 20,
   },
   logoContainer: {
     alignItems: 'center',
     marginTop: height * 0.08,
-    marginBottom: height * 0.02,
+    marginBottom: height * 0.06,
   },
   logo: {
-    width: width * 0.7,
-    height: 100,
+    width: width * 0.6,
+    height: height * 0.15,
   },
   formContainer: {
     flex: 1,
     justifyContent: 'center',
+    paddingBottom: 40,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    borderRadius: 25,
-    marginBottom: 15,
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    height: 56,
   },
   inputIcon: {
-    marginRight: 15,
+    marginRight: 12,
   },
   textInput: {
     flex: 1,
     fontSize: 16,
-    color: '#374151',
+    color: '#1F2937',
   },
   eyeIcon: {
-    padding: 5,
+    padding: 4,
+  },
+  loginLinkContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+    marginTop: 8,
+  },
+  loginLinkText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  loginLink: {
+    fontSize: 14,
+    color: '#c72599',
+    fontWeight: '600',
   },
   dividerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 20,
+    marginBottom: 24,
   },
   dividerLine: {
     flex: 1,
@@ -232,61 +257,44 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
   },
   dividerText: {
-    color: '#6B7280',
+    marginHorizontal: 16,
     fontSize: 14,
-    fontWeight: '600',
-    marginHorizontal: 20,
+    color: '#9CA3AF',
   },
   socialContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: 30,
+    justifyContent: 'space-evenly',
+    marginBottom: 32,
   },
   socialButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 10,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#E5E7EB',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   socialIcon: {
     width: 24,
     height: 24,
   },
   loginButton: {
-    borderRadius: 25,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   loginButtonInner: {
-    paddingVertical: 20,
+    paddingVertical: 16,
     alignItems: 'center',
-    borderRadius: 25,
+    justifyContent: 'center',
+    minHeight: 56,
   },
   loginButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: 'bold',
-    letterSpacing: 1,
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
 });
 

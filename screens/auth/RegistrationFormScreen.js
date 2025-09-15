@@ -11,40 +11,127 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
-  ScrollView
+  ScrollView,
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { register } from '../../services/authService';
 
 const { width, height } = Dimensions.get('window');
 
-const RegistrationFormScreen = ({ navigation }) => {
-  const [nom, setNom] = useState('');
-  const [prenoms, setPrenoms] = useState('');
-  const [nomEntreprise, setNomEntreprise] = useState('');
-  const [numeroTelephone, setNumeroTelephone] = useState('');
+const RegistrationFormScreen = ({ navigation, route }) => {
+  // Correction: Vérifier si route.params existe et contient les données nécessaires
+  const email = route?.params?.email || '';
+  const password = route?.params?.password || '';
 
-  const handleRegister = () => {
-    // Logique d'inscription finale
-    navigation.navigate('Home')
-    console.log('Register with:', { nom, prenoms, nomEntreprise, numeroTelephone });
-    // Navigation vers la page suivante ou succès
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [nomEntreprise, setNomEntreprise] = useState('');
+  const [telephone, setTelephone] = useState('');
+  // Ajout d'états pour email et password si ils ne viennent pas des params
+  const [localEmail, setLocalEmail] = useState(email);
+  const [localPassword, setLocalPassword] = useState(password);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleRegister = async () => {
+    // Utiliser les valeurs locales ou celles des params
+    const emailToUse = localEmail || email;
+    const passwordToUse = localPassword || password;
+
+    // Client-side validation
+    if (!emailToUse || !passwordToUse || !firstName || !lastName) {
+      Alert.alert('Erreur', 'Des informations requises sont manquantes.');
+      return;
+    }
+    
+    console.log('Tentative d\'inscription avec:', {
+      email: emailToUse,
+      firstName,
+      lastName,
+      nomEntreprise,
+      telephone
+    });
+    
+    setIsLoading(true);
+
+    try {
+      // Data to send to the Django API.
+      const userData = {
+        first_name: firstName,
+        last_name: lastName,
+        email: emailToUse,
+        password: passwordToUse,
+        telephone: telephone,
+        nom_entreprise: nomEntreprise,
+      };
+
+      console.log('Données envoyées:', userData);
+
+      const response = await register(userData);
+      
+      console.log('Inscription réussie !', response.data);
+      Alert.alert(
+        'Succès', 
+        'Votre inscription a été effectuée avec succès !',
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.navigate('Login')
+          }
+        ]
+      );
+      
+    } catch (error) {
+      console.error('Erreur complète lors de l\'inscription:', error);
+
+      let errorMessage = 'Une erreur est survenue lors de l\'inscription.';
+      
+      // Gestion des erreurs réseau
+      if (error.code === 'NETWORK_ERROR' || error.message === 'Network Error') {
+        errorMessage = 'Erreur de réseau. Vérifiez votre connexion internet.';
+      } else if (error.response?.data) {
+        console.log('Error data:', error.response.data);
+        
+        if (error.response.data.detail) {
+          errorMessage = error.response.data.detail;
+        } else if (error.response.data.email) {
+          errorMessage = 'Erreur email : ' + (Array.isArray(error.response.data.email) ? error.response.data.email[0] : error.response.data.email);
+        } else if (error.response.data.username) {
+          errorMessage = 'Nom d\'utilisateur : ' + (Array.isArray(error.response.data.username) ? error.response.data.username[0] : error.response.data.username);
+        } else if (error.response.data.password) {
+          errorMessage = 'Erreur mot de passe : ' + (Array.isArray(error.response.data.password) ? error.response.data.password[0] : error.response.data.password);
+        } else {
+          const firstErrorKey = Object.keys(error.response.data)[0];
+          if (firstErrorKey) {
+            const errorValue = error.response.data[firstErrorKey];
+            errorMessage = `${firstErrorKey}: ${Array.isArray(errorValue) ? errorValue[0] : errorValue}`;
+          }
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      Alert.alert('Erreur d\'inscription', errorMessage);
+      
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      
       <View style={styles.background}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardAvoidingView}
         >
-          <ScrollView 
+          <ScrollView
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
-            {/* Logo Section */}
             <View style={styles.logoContainer}>
               <Image
                 source={require('../../assets/images/degra_court.png')}
@@ -53,20 +140,37 @@ const RegistrationFormScreen = ({ navigation }) => {
               />
             </View>
 
-            {/* Form Section */}
             <View style={styles.formContainer}>
-              {/* Nom Input */}
-              <View style={styles.inputContainer}>
-                <Ionicons name="person-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Nom"
-                  placeholderTextColor="#9CA3AF"
-                  value={nom}
-                  onChangeText={setNom}
-                  autoCapitalize="words"
-                />
-              </View>
+              {/* Email Input - Si pas dans les params */}
+              {!email && (
+                <View style={styles.inputContainer}>
+                  <Ionicons name="mail-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Email"
+                    placeholderTextColor="#9CA3AF"
+                    value={localEmail}
+                    onChangeText={setLocalEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
+                </View>
+              )}
+
+              {/* Password Input - Si pas dans les params */}
+              {!password && (
+                <View style={styles.inputContainer}>
+                  <Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Mot de passe"
+                    placeholderTextColor="#9CA3AF"
+                    value={localPassword}
+                    onChangeText={setLocalPassword}
+                    secureTextEntry
+                  />
+                </View>
+              )}
 
               {/* Prénoms Input */}
               <View style={styles.inputContainer}>
@@ -75,8 +179,21 @@ const RegistrationFormScreen = ({ navigation }) => {
                   style={styles.textInput}
                   placeholder="Prénoms"
                   placeholderTextColor="#9CA3AF"
-                  value={prenoms}
-                  onChangeText={setPrenoms}
+                  value={firstName}
+                  onChangeText={setFirstName}
+                  autoCapitalize="words"
+                />
+              </View>
+
+              {/* Nom Input */}
+              <View style={styles.inputContainer}>
+                <Ionicons name="person-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Nom"
+                  placeholderTextColor="#9CA3AF"
+                  value={lastName}
+                  onChangeText={setLastName}
                   autoCapitalize="words"
                 />
               </View>
@@ -101,21 +218,28 @@ const RegistrationFormScreen = ({ navigation }) => {
                   style={styles.textInput}
                   placeholder="Numéro de téléphone"
                   placeholderTextColor="#9CA3AF"
-                  value={numeroTelephone}
-                  onChangeText={setNumeroTelephone}
+                  value={telephone}
+                  onChangeText={setTelephone}
                   keyboardType="phone-pad"
                 />
               </View>
 
-              {/* Register Button */}
               <LinearGradient
-                colors={['#c72599', '#972eaf', '#6041c9' ]}
+                colors={['#c72599', '#972eaf', '#6041c9']}
                 start={{ x: 0.5, y: 1 }}
                 end={{ x: 0, y: 1 }}
                 style={styles.registerButton}
               >
-                <TouchableOpacity style={styles.registerButtonInner} onPress={handleRegister}>
-                  <Text style={styles.registerButtonText}>S'INSCRIRE</Text>
+                <TouchableOpacity
+                  style={styles.registerButtonInner}
+                  onPress={handleRegister}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.registerButtonText}>S'INSCRIRE</Text>
+                  )}
                 </TouchableOpacity>
               </LinearGradient>
             </View>
